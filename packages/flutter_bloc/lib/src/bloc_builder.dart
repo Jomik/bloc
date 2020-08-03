@@ -1,7 +1,6 @@
-import 'dart:async';
-
 import 'package:bloc/bloc.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'bloc_provider.dart';
 
@@ -120,62 +119,37 @@ abstract class BlocBuilderBase<C extends Cubit<S>, S> extends StatefulWidget {
 
 class _BlocBuilderBaseState<C extends Cubit<S>, S>
     extends State<BlocBuilderBase<C, S>> {
-  StreamSubscription<S> _subscription;
-  S _previousState;
   S _state;
-  C _cubit;
 
   @override
   void initState() {
     super.initState();
-    _cubit = widget.cubit ?? context.bloc<C>();
-    _previousState = _cubit?.state;
-    _state = _cubit?.state;
-    _subscribe();
+    final cubit = widget.cubit ?? context.bloc<C>();
+    _state = cubit?.state;
   }
 
   @override
   void didUpdateWidget(BlocBuilderBase<C, S> oldWidget) {
     super.didUpdateWidget(oldWidget);
     final oldCubit = oldWidget.cubit ?? context.bloc<C>();
-    final currentBloc = widget.cubit ?? oldCubit;
-    if (oldCubit != currentBloc) {
-      if (_subscription != null) {
-        _unsubscribe();
-        _cubit = widget.cubit ?? context.bloc<C>();
-        _previousState = _cubit?.state;
-        _state = _cubit?.state;
-      }
-      _subscribe();
+    final currentCubit = widget.cubit ?? oldCubit;
+    if (oldCubit != currentCubit) {
+      final cubit = widget.cubit ?? context.bloc<C>();
+      _state = cubit?.state;
     }
   }
 
   @override
-  Widget build(BuildContext context) => widget.build(context, _state);
-
-  @override
-  void dispose() {
-    _unsubscribe();
-    super.dispose();
-  }
-
-  void _subscribe() {
-    if (_cubit != null) {
-      _subscription = _cubit.listen((state) {
-        if (widget.buildWhen?.call(_previousState, state) ?? true) {
-          setState(() {
-            _state = state;
-          });
-        }
-        _previousState = state;
-      });
-    }
-  }
-
-  void _unsubscribe() {
-    if (_subscription != null) {
-      _subscription.cancel();
-      _subscription = null;
-    }
+  Widget build(BuildContext context) {
+    return BlocListener<C, S>(
+      listener: (context, state) {
+        setState(() {
+          _state = state;
+        });
+      },
+      listenWhen: widget.buildWhen,
+      cubit: widget.cubit,
+      child: widget.build(context, _state),
+    );
   }
 }
